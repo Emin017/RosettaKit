@@ -157,7 +157,7 @@ class Script:
     @contextmanager
     def if_not(self, condition: Condition, *, origin: str | None = None):
         body: list[Any] = []
-        self._current().append(If(Condition(f"!{condition.text}"), body, origin))
+        self._current().append(If(Condition(f"!({condition.text})"), body, origin))
         self._stack.append(body)
         try:
             yield self
@@ -224,7 +224,7 @@ class TclBuilder:
     def _render_node(self, node: Any, *, level: int) -> str:
         prefix = self.indent * level
         if isinstance(node, Comment):
-            return f"{prefix}# {node.text}\n"
+            return "".join(f"{prefix}# {line}\n" for line in _comment_lines(node.text))
         if isinstance(node, BlankLine):
             return "\n"
         if isinstance(node, Set):
@@ -301,20 +301,32 @@ def _quote_tcl_word(text: str) -> str:
         return "{}"
     if not _needs_quoting(text):
         return text
-    if "}" not in text and "\n" not in text and "\r" not in text:
+    if "{" not in text and "}" not in text and "\n" not in text and "\r" not in text:
         return "{" + text + "}"
-    escaped = (
-        text.replace("\\", "\\\\")
-        .replace(" ", "\\ ")
-        .replace("{", "\\{")
-        .replace("}", "\\}")
-        .replace("[", "\\[")
-        .replace("]", "\\]")
-        .replace("$", "\\$")
-        .replace('"', '\\"')
-    )
-    return escaped
+    return "".join(_escape_unbraced_char(char) for char in text)
 
 
 def _needs_quoting(text: str) -> bool:
     return text == "" or any(char.isspace() or char in "{}[]$;\\\"" for char in text)
+
+
+def _escape_unbraced_char(char: str) -> str:
+    replacements = {
+        " ": "\\ ",
+        "\t": "\\t",
+        "\n": "\\n",
+        "\r": "\\r",
+        "\\": "\\\\",
+        "{": "\\{",
+        "}": "\\}",
+        "[": "\\[",
+        "]": "\\]",
+        "$": "\\$",
+        ";": "\\;",
+        '"': '\\"',
+    }
+    return replacements.get(char, char)
+
+
+def _comment_lines(text: str) -> list[str]:
+    return text.splitlines() or [""]

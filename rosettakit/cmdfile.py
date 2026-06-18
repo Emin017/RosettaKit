@@ -127,7 +127,7 @@ class CommandFileBuilder:
 
     def _render_node(self, prefix: str, node: Any) -> str:
         if isinstance(node, Comment):
-            return f"# {node.text}\n"
+            return "".join(f"# {line}\n" for line in _comment_lines(node.text))
         if isinstance(node, BlankLine):
             return "\n"
         if isinstance(node, Flag):
@@ -148,6 +148,10 @@ class CommandFileBuilder:
         elif isinstance(node, Option):
             if not node.name:
                 diagnostics.append(Diagnostic("empty-option-name", "option name is required", node.origin))
+            if _has_line_break(str(node.value)):
+                diagnostics.append(
+                    Diagnostic("line-break-in-value", "command-file values cannot contain line breaks", node.origin)
+                )
             if node.value_type is ValueType.PATH and node.value == "" and not node.omit_empty:
                 diagnostics.append(Diagnostic("empty-path", "path value is required", node.origin))
             if node.value_type is ValueType.PATH and node.value != "" and _needs_quoting(str(node.value)):
@@ -170,19 +174,36 @@ def _quote_word(text: str) -> str:
         return "{}"
     if not _needs_quoting(text):
         return text
-    if "}" not in text and "\n" not in text and "\r" not in text:
+    if "{" not in text and "}" not in text and "\n" not in text and "\r" not in text:
         return "{" + text + "}"
-    return (
-        text.replace("\\", "\\\\")
-        .replace(" ", "\\ ")
-        .replace("{", "\\{")
-        .replace("}", "\\}")
-        .replace("[", "\\[")
-        .replace("]", "\\]")
-        .replace("$", "\\$")
-        .replace('"', '\\"')
-    )
+    return "".join(_escape_word_char(char) for char in text)
 
 
 def _needs_quoting(text: str) -> bool:
     return text == "" or any(char.isspace() or char in "{}[]$;\\\"" for char in text)
+
+
+def _escape_word_char(char: str) -> str:
+    replacements = {
+        " ": "\\ ",
+        "\t": "\\t",
+        "\r": "\\r",
+        "\n": "\\n",
+        "\\": "\\\\",
+        "{": "\\{",
+        "}": "\\}",
+        "[": "\\[",
+        "]": "\\]",
+        "$": "\\$",
+        ";": "\\;",
+        '"': '\\"',
+    }
+    return replacements.get(char, char)
+
+
+def _has_line_break(text: str) -> bool:
+    return "\n" in text or "\r" in text
+
+
+def _comment_lines(text: str) -> list[str]:
+    return text.splitlines() or [""]

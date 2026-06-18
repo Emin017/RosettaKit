@@ -20,7 +20,7 @@ def test_yosys_example_output_is_deterministic_and_tclsh_valid(tmp_path) -> None
         "file mkdir $tmp_dir\n"
         "set synth_stat_json {reports/synth stat.json}\n"
         "set stat_dir [file dirname $synth_stat_json]\n"
-        "if {![file isdirectory $stat_dir]} {\n"
+        "if {!([file isdirectory $stat_dir])} {\n"
         "    file mkdir $stat_dir\n"
         "}\n"
     )

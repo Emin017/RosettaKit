@@ -33,7 +33,7 @@ def test_tcl_script_builds_global_var_like_document() -> None:
         "file mkdir $tmp_dir\n"
         "set synth_stat_json {reports/synth stat.json}\n"
         "set stat_dir [file dirname $synth_stat_json]\n"
-        "if {![file isdirectory $stat_dir]} {\n"
+        "if {!([file isdirectory $stat_dir])} {\n"
         "    file mkdir $stat_dir\n"
         "}\n"
     )
@@ -58,6 +58,37 @@ def test_tcl_quoting_covers_special_characters() -> None:
         "set backslash {a\\b}\n"
         "set empty {}\n"
     )
+
+
+def test_tcl_quoting_escapes_unbraceable_words_without_extra_lines() -> None:
+    script = tcl.Script()
+    script.set("left_brace", "a{b")
+    script.set("newline", "a\nputs BAD")
+    script.set("semicolon", "a;puts BAD}")
+
+    text = script.build()
+
+    assert text == (
+        "set left_brace a\\{b\n"
+        "set newline a\\nputs\\ BAD\n"
+        "set semicolon a\\;puts\\ BAD\\}\n"
+    )
+
+
+def test_tcl_multiline_comments_prefix_every_line() -> None:
+    script = tcl.Script()
+    script.comment("note\nputs BAD")
+
+    assert script.build() == "# note\n# puts BAD\n"
+
+
+def test_tcl_if_not_negates_composite_conditions() -> None:
+    script = tcl.Script()
+
+    with script.if_not(tcl.Condition("$a || $b")):
+        script.set("result", "false")
+
+    assert script.build() == "if {!($a || $b)} {\n    set result false\n}\n"
 
 
 def test_tcl_validate_reports_contextual_diagnostics() -> None:
