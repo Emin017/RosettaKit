@@ -27,7 +27,7 @@ def test_yosys_example_output_is_deterministic_and_tclsh_valid(tmp_path) -> None
 
     script_path = tmp_path / "global_var.tcl"
     script_path.write_text(text, encoding="utf-8")
-    subprocess.run([require_tclsh(), str(script_path)], check=True)
+    subprocess.run([require_tclsh(), str(script_path)], check=True, cwd=tmp_path)
 
 
 def test_sizer_examples_are_deterministic() -> None:
