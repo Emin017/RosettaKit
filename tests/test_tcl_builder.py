@@ -6,6 +6,7 @@ import pytest
 
 from rosettakit import tcl
 from rosettakit.errors import UnsafeRawError, ValidationError
+from tests.tclsh_utils import require_tclsh
 
 
 def test_tcl_script_builds_global_var_like_document() -> None:
@@ -102,7 +103,7 @@ def test_tcl_comments_escape_block_sensitive_characters() -> None:
         "}\n"
     )
     result = subprocess.run(
-        ["tclsh"],
+        [require_tclsh()],
         input=text + "puts $ok\n",
         check=True,
         capture_output=True,

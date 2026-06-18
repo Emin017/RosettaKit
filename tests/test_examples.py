@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import shutil
 import subprocess
 
 from examples import sizer_cmd_file, sizer_env_file, yosys_global_var
+from tests.tclsh_utils import require_tclsh
 
 
 def test_yosys_example_output_is_deterministic_and_tclsh_valid(tmp_path) -> None:
@@ -25,11 +25,9 @@ def test_yosys_example_output_is_deterministic_and_tclsh_valid(tmp_path) -> None
         "}\n"
     )
 
-    tclsh = shutil.which("tclsh")
-    assert tclsh is not None
     script_path = tmp_path / "global_var.tcl"
     script_path.write_text(text, encoding="utf-8")
-    subprocess.run([tclsh, str(script_path)], check=True)
+    subprocess.run([require_tclsh(), str(script_path)], check=True)
 
 
 def test_sizer_examples_are_deterministic() -> None:
