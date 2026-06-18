@@ -1,0 +1,30 @@
+[build-system]
+build-backend = "uv_build"
+requires = [ "uv-build>=0.10.9,<0.11.0" ]
+
+[project]
+name = "rosettakit"
+version = "1.0.0"
+description = "Typed Python builders for EDA scripts and command files"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "pytest>=8",
+]
+
+[tool.uv]
+build-backend.module-name = [ "rosettakit" ]
+build-backend.module-root = ""
+
+[tool.pytest.ini_options]
+testpaths = [ "tests" ]
