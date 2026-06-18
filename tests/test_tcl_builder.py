@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import subprocess
+
 import pytest
 
 from rosettakit import tcl
@@ -80,6 +82,33 @@ def test_tcl_multiline_comments_prefix_every_line() -> None:
     script.comment("note\nputs BAD")
 
     assert script.build() == "# note\n# puts BAD\n"
+
+
+def test_tcl_comments_escape_block_sensitive_characters() -> None:
+    script = tcl.Script()
+
+    with script.if_not(tcl.Condition("0")):
+        script.comment("}")
+        script.comment("trailing\\")
+        script.set("ok", 1)
+
+    text = script.build()
+
+    assert text == (
+        "if {!(0)} {\n"
+        "    # \\}\n"
+        "    # trailing\\\\\n"
+        "    set ok 1\n"
+        "}\n"
+    )
+    result = subprocess.run(
+        ["tclsh"],
+        input=text + "puts $ok\n",
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert result.stdout == "1\n"
 
 
 def test_tcl_if_not_negates_composite_conditions() -> None:

@@ -224,7 +224,7 @@ class TclBuilder:
     def _render_node(self, node: Any, *, level: int) -> str:
         prefix = self.indent * level
         if isinstance(node, Comment):
-            return "".join(f"{prefix}# {line}\n" for line in _comment_lines(node.text))
+            return "".join(f"{prefix}# {_escape_comment_line(line)}\n" for line in _comment_lines(node.text))
         if isinstance(node, BlankLine):
             return "\n"
         if isinstance(node, Set):
@@ -330,3 +330,7 @@ def _escape_unbraced_char(char: str) -> str:
 
 def _comment_lines(text: str) -> list[str]:
     return text.splitlines() or [""]
+
+
+def _escape_comment_line(line: str) -> str:
+    return line.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
