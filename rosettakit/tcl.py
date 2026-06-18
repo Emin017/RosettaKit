@@ -48,6 +48,7 @@ class Raw:
 @dataclass(frozen=True)
 class Condition:
     text: str
+    diagnostics: tuple[Diagnostic, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -118,7 +119,8 @@ def raw(text: str) -> Raw:
 
 
 def file_isdirectory(value: Any) -> Condition:
-    return Condition(f"[file isdirectory {TclBuilder().render_value(value)}]")
+    diagnostics = tuple(_validate_value(value, origin=None, scalar_api=False))
+    return Condition(f"[file isdirectory {TclBuilder().render_value(value)}]", diagnostics)
 
 
 class Script:
@@ -157,7 +159,7 @@ class Script:
     @contextmanager
     def if_not(self, condition: Condition, *, origin: str | None = None):
         body: list[Any] = []
-        self._current().append(If(Condition(f"!({condition.text})"), body, origin))
+        self._current().append(If(Condition(f"!({condition.text})", condition.diagnostics), body, origin))
         self._stack.append(body)
         try:
             yield self
@@ -254,6 +256,8 @@ class TclBuilder:
         elif isinstance(node, If):
             if not node.condition.text:
                 diagnostics.append(Diagnostic("empty-condition", "condition is required", node.origin))
+            for item in node.condition.diagnostics:
+                diagnostics.append(_diagnostic_with_origin(item, node.origin))
             for child in node.body:
                 diagnostics.extend(self._validate_node(child))
         elif isinstance(node, RawLine):
@@ -269,6 +273,12 @@ def _coerce_value(value: Any) -> Any:
     if isinstance(value, (Scalar, PathValue, ListValue, VarRef, Expr, CommandSubstitution, Raw)):
         return value
     return Scalar(value)
+
+
+def _diagnostic_with_origin(diagnostic: Diagnostic, origin: str | None) -> Diagnostic:
+    if diagnostic.origin or origin is None:
+        return diagnostic
+    return Diagnostic(diagnostic.code, diagnostic.message, origin)
 
 
 def _validate_value(value: Any, *, origin: str | None, scalar_api: bool) -> list[Diagnostic]:

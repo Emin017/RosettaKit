@@ -148,6 +148,24 @@ def test_tcl_raw_values_are_unsafe_by_default() -> None:
     assert script.build(allow_unsafe_raw=True) == "set now [clock seconds]\n"
 
 
+def test_tcl_raw_values_in_conditions_are_unsafe_by_default() -> None:
+    script = tcl.Script()
+
+    with script.if_not(tcl.file_isdirectory(tcl.raw("$unsafe")), origin="unit.raw_condition"):
+        script.set("ok", 1)
+
+    assert [(item.code, item.origin) for item in script.validate()] == [
+        ("unsafe-raw", "unit.raw_condition"),
+    ]
+    with pytest.raises(UnsafeRawError, match="unit.raw_condition"):
+        script.build()
+    assert script.build(allow_unsafe_raw=True) == (
+        "if {!([file isdirectory $unsafe])} {\n"
+        "    set ok 1\n"
+        "}\n"
+    )
+
+
 def test_tcl_builder_can_build_script_directly() -> None:
     script = tcl.Script()
     script.set("top_design", "gcd")
