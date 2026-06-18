@@ -20,6 +20,7 @@ dependencies = []
 [dependency-groups]
 dev = [
   "pytest>=8",
+  "ruff>=0.14.10",
 ]
 
 [tool.uv]
@@ -28,3 +29,6 @@ build-backend.module-root = ""
 
 [tool.pytest.ini_options]
 testpaths = [ "tests" ]
+
+[tool.ruff]
+line-length = 100
