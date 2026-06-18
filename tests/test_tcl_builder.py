@@ -136,6 +136,26 @@ def test_tcl_validate_reports_contextual_diagnostics() -> None:
     ]
 
 
+def test_tcl_raw_values_are_unsafe_by_default() -> None:
+    script = tcl.Script()
+    script.set("now", tcl.raw("[clock seconds]"), origin="unit.raw_value")
+
+    assert [(item.code, item.origin) for item in script.validate()] == [
+        ("unsafe-raw", "unit.raw_value"),
+    ]
+    with pytest.raises(UnsafeRawError, match="unit.raw_value"):
+        script.build()
+    assert script.build(allow_unsafe_raw=True) == "set now [clock seconds]\n"
+
+
+def test_tcl_builder_can_build_script_directly() -> None:
+    script = tcl.Script()
+    script.set("top_design", "gcd")
+
+    assert script.nodes == (tcl.Set("top_design", tcl.Scalar("gcd")),)
+    assert tcl.TclBuilder().build(script) == "set top_design gcd\n"
+
+
 def test_tcl_build_fails_for_invalid_or_unsafe_documents() -> None:
     invalid = tcl.Script()
     invalid.set("", "value", origin="unit.empty_name")

@@ -293,6 +293,8 @@ def _validate_value(value: Any, *, origin: str | None, scalar_api: bool) -> list
             diagnostics.append(Diagnostic("empty-command-name", "command name is required", origin))
         for arg in value.args:
             diagnostics.extend(_validate_value(arg, origin=origin, scalar_api=False))
+    elif isinstance(value, Raw):
+        diagnostics.append(Diagnostic("unsafe-raw", "raw Tcl value requires explicit opt-in", origin))
     return diagnostics
 
 

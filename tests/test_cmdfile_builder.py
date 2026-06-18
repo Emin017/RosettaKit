@@ -83,3 +83,11 @@ def test_command_file_diagnostics_and_raw_policy() -> None:
     with pytest.raises(UnsafeRawError, match="unit.raw"):
         raw.build()
     assert raw.build(allow_unsafe_raw=True) == "-manual $unsafe\n"
+
+
+def test_command_file_builder_can_build_document_directly() -> None:
+    cmd = cmdfile.CommandFile(prefix="-")
+    cmd.option("top", "gcd")
+
+    assert cmd.nodes == (cmdfile.Option("top", "gcd", cmdfile.ValueType.SCALAR, False),)
+    assert cmdfile.CommandFileBuilder().build(cmd) == "-top gcd\n"
