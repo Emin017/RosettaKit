@@ -3,10 +3,13 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
+from typing import TypeAlias
 
 from rosettakit.diagnostics import Diagnostic
 from rosettakit.errors import BuildError, UnsafeRawError, ValidationError
+
+
+CommandFileValue: TypeAlias = object
 
 
 class ValueType(Enum):
@@ -34,7 +37,7 @@ class Flag:
 @dataclass(frozen=True)
 class Option:
     name: str
-    value: Any
+    value: CommandFileValue
     value_type: ValueType
     omit_empty: bool
     origin: str | None = None
@@ -46,13 +49,16 @@ class RawLine:
     origin: str | None = None
 
 
+CommandFileNode: TypeAlias = Comment | BlankLine | Flag | Option | RawLine
+
+
 class CommandFile:
     def __init__(self, *, prefix: str = "-") -> None:
         self.prefix = prefix
-        self._nodes: list[Any] = []
+        self._nodes: list[CommandFileNode] = []
 
     @property
-    def nodes(self) -> tuple[Any, ...]:
+    def nodes(self) -> tuple[CommandFileNode, ...]:
         return tuple(self._nodes)
 
     def comment(self, text: str, *, origin: str | None = None) -> None:
@@ -67,7 +73,7 @@ class CommandFile:
     def option(
         self,
         name: str,
-        value: Any,
+        value: CommandFileValue,
         *,
         value_type: ValueType = ValueType.SCALAR,
         omit_empty: bool = False,
@@ -78,7 +84,7 @@ class CommandFile:
     def options(
         self,
         name: str,
-        values: Iterable[Any],
+        values: Iterable[CommandFileValue],
         *,
         value_type: ValueType = ValueType.SCALAR,
         omit_empty: bool = False,
@@ -125,7 +131,7 @@ class CommandFileBuilder:
             diagnostics.extend(self._validate_node(node))
         return diagnostics
 
-    def _render_node(self, prefix: str, node: Any) -> str:
+    def _render_node(self, prefix: str, node: CommandFileNode) -> str:
         if isinstance(node, Comment):
             return "".join(f"# {line}\n" for line in _comment_lines(node.text))
         if isinstance(node, BlankLine):
@@ -140,7 +146,7 @@ class CommandFileBuilder:
             return f"{node.text}\n"
         raise BuildError(f"unsupported command-file node: {node!r}")
 
-    def _validate_node(self, node: Any) -> list[Diagnostic]:
+    def _validate_node(self, node: CommandFileNode) -> list[Diagnostic]:
         diagnostics: list[Diagnostic] = []
         if isinstance(node, Flag):
             if not node.name:

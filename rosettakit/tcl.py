@@ -1,17 +1,20 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any
+from typing import TypeAlias
 
 from rosettakit.diagnostics import Diagnostic
 from rosettakit.errors import BuildError, UnsafeRawError, ValidationError
 
 
+TclInputValue: TypeAlias = object
+
+
 @dataclass(frozen=True)
 class Scalar:
-    value: Any
+    value: TclInputValue
 
 
 @dataclass(frozen=True)
@@ -21,7 +24,7 @@ class PathValue:
 
 @dataclass(frozen=True)
 class ListValue:
-    values: tuple[Any, ...]
+    values: tuple[TclInputValue, ...]
 
 
 @dataclass(frozen=True)
@@ -37,12 +40,15 @@ class Expr:
 @dataclass(frozen=True)
 class CommandSubstitution:
     command: str
-    args: tuple[Any, ...]
+    args: tuple[TclInputValue, ...]
 
 
 @dataclass(frozen=True)
 class Raw:
     text: str
+
+
+TclValue: TypeAlias = Scalar | PathValue | ListValue | VarRef | Expr | CommandSubstitution | Raw
 
 
 @dataclass(frozen=True)
@@ -65,7 +71,7 @@ class BlankLine:
 @dataclass(frozen=True)
 class Set:
     name: str
-    value: Any
+    value: TclValue
     scalar_api: bool = True
     origin: str | None = None
 
@@ -73,14 +79,14 @@ class Set:
 @dataclass(frozen=True)
 class Command:
     name: str
-    args: tuple[Any, ...]
+    args: tuple[TclValue, ...]
     origin: str | None = None
 
 
 @dataclass(frozen=True)
 class If:
     condition: Condition
-    body: list[Any]
+    body: list[TclNode]
     origin: str | None = None
 
 
@@ -90,7 +96,10 @@ class RawLine:
     origin: str | None = None
 
 
-def word(value: Any) -> Scalar:
+TclNode: TypeAlias = Comment | BlankLine | Set | Command | If | RawLine
+
+
+def word(value: TclInputValue) -> Scalar:
     return Scalar(value)
 
 
@@ -98,7 +107,7 @@ def path(value: str) -> PathValue:
     return PathValue(value)
 
 
-def list_value(values: Iterable[Any]) -> ListValue:
+def list_value(values: Iterable[TclInputValue]) -> ListValue:
     return ListValue(tuple(values))
 
 
@@ -110,7 +119,7 @@ def expr(expression: str) -> Expr:
     return Expr(expression)
 
 
-def call(command: str, *args: Any) -> CommandSubstitution:
+def call(command: str, *args: TclInputValue) -> CommandSubstitution:
     return CommandSubstitution(command, args)
 
 
@@ -118,18 +127,18 @@ def raw(text: str) -> Raw:
     return Raw(text)
 
 
-def file_isdirectory(value: Any) -> Condition:
+def file_isdirectory(value: TclInputValue) -> Condition:
     diagnostics = tuple(_validate_value(value, origin=None, scalar_api=False))
     return Condition(f"[file isdirectory {TclBuilder().render_value(value)}]", diagnostics)
 
 
 class Script:
     def __init__(self) -> None:
-        self._nodes: list[Any] = []
-        self._stack: list[list[Any]] = [self._nodes]
+        self._nodes: list[TclNode] = []
+        self._stack: list[list[TclNode]] = [self._nodes]
 
     @property
-    def nodes(self) -> tuple[Any, ...]:
+    def nodes(self) -> tuple[TclNode, ...]:
         return tuple(self._nodes)
 
     def comment(self, text: str, *, origin: str | None = None) -> None:
@@ -138,27 +147,33 @@ class Script:
     def blank_line(self, *, origin: str | None = None) -> None:
         self._current().append(BlankLine(origin))
 
-    def set(self, name: str, value: Any, *, origin: str | None = None) -> None:
+    def set(self, name: str, value: TclInputValue, *, origin: str | None = None) -> None:
         self._current().append(Set(name, _coerce_value(value), True, origin))
 
     def set_path(self, name: str, value: str, *, origin: str | None = None) -> None:
         self.set(name, path(value), origin=origin)
 
-    def set_list(self, name: str, values: Iterable[Any], *, origin: str | None = None) -> None:
+    def set_list(
+        self,
+        name: str,
+        values: Iterable[TclInputValue],
+        *,
+        origin: str | None = None,
+    ) -> None:
         self._current().append(Set(name, list_value(values), False, origin))
 
     def set_expr(self, name: str, expression: str, *, origin: str | None = None) -> None:
         self.set(name, expr(expression), origin=origin)
 
-    def command(self, name: str, *args: Any, origin: str | None = None) -> None:
+    def command(self, name: str, *args: TclInputValue, origin: str | None = None) -> None:
         self._current().append(Command(name, tuple(_coerce_value(arg) for arg in args), origin))
 
-    def file_mkdir(self, value: Any, *, origin: str | None = None) -> None:
+    def file_mkdir(self, value: TclInputValue, *, origin: str | None = None) -> None:
         self.command("file", "mkdir", value, origin=origin)
 
     @contextmanager
-    def if_not(self, condition: Condition, *, origin: str | None = None):
-        body: list[Any] = []
+    def if_not(self, condition: Condition, *, origin: str | None = None) -> Iterator[Script]:
+        body: list[TclNode] = []
         self._current().append(If(Condition(f"!({condition.text})", condition.diagnostics), body, origin))
         self._stack.append(body)
         try:
@@ -175,7 +190,7 @@ class Script:
     def build(self, *, allow_unsafe_raw: bool = False) -> str:
         return TclBuilder(allow_unsafe_raw=allow_unsafe_raw).build(self)
 
-    def _current(self) -> list[Any]:
+    def _current(self) -> list[TclNode]:
         return self._stack[-1]
 
 
@@ -202,7 +217,7 @@ class TclBuilder:
             diagnostics.extend(self._validate_node(node))
         return diagnostics
 
-    def render_value(self, value: Any) -> str:
+    def render_value(self, value: TclInputValue) -> str:
         value = _coerce_value(value)
         if isinstance(value, Scalar):
             return _quote_tcl_word(str(value.value))
@@ -223,7 +238,7 @@ class TclBuilder:
             return value.text
         raise BuildError(f"unsupported Tcl value: {value!r}")
 
-    def _render_node(self, node: Any, *, level: int) -> str:
+    def _render_node(self, node: TclNode, *, level: int) -> str:
         prefix = self.indent * level
         if isinstance(node, Comment):
             return "".join(f"{prefix}# {_escape_comment_line(line)}\n" for line in _comment_lines(node.text))
@@ -242,7 +257,7 @@ class TclBuilder:
             return f"{prefix}{node.text}\n"
         raise BuildError(f"unsupported Tcl node: {node!r}")
 
-    def _validate_node(self, node: Any) -> list[Diagnostic]:
+    def _validate_node(self, node: TclNode) -> list[Diagnostic]:
         diagnostics: list[Diagnostic] = []
         if isinstance(node, Set):
             if not node.name:
@@ -269,7 +284,7 @@ class TclBuilder:
         return diagnostics
 
 
-def _coerce_value(value: Any) -> Any:
+def _coerce_value(value: TclInputValue) -> TclValue:
     if isinstance(value, (Scalar, PathValue, ListValue, VarRef, Expr, CommandSubstitution, Raw)):
         return value
     return Scalar(value)
@@ -281,7 +296,12 @@ def _diagnostic_with_origin(diagnostic: Diagnostic, origin: str | None) -> Diagn
     return Diagnostic(diagnostic.code, diagnostic.message, origin)
 
 
-def _validate_value(value: Any, *, origin: str | None, scalar_api: bool) -> list[Diagnostic]:
+def _validate_value(
+    value: TclInputValue,
+    *,
+    origin: str | None,
+    scalar_api: bool,
+) -> list[Diagnostic]:
     value = _coerce_value(value)
     diagnostics: list[Diagnostic] = []
     if isinstance(value, PathValue):
