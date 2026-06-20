@@ -150,27 +150,48 @@ class CommandFileBuilder:
         diagnostics: list[Diagnostic] = []
         if isinstance(node, Flag):
             if not node.name:
-                diagnostics.append(Diagnostic("empty-option-name", "flag name is required", node.origin))
+                diagnostics.append(
+                    Diagnostic("empty-option-name", "flag name is required", node.origin)
+                )
         elif isinstance(node, Option):
             if not node.name:
-                diagnostics.append(Diagnostic("empty-option-name", "option name is required", node.origin))
+                diagnostics.append(
+                    Diagnostic("empty-option-name", "option name is required", node.origin)
+                )
             if _has_line_break(str(node.value)):
                 diagnostics.append(
-                    Diagnostic("line-break-in-value", "command-file values cannot contain line breaks", node.origin)
+                    Diagnostic(
+                        "line-break-in-value",
+                        "command-file values cannot contain line breaks",
+                        node.origin,
+                    )
                 )
             if node.value_type is ValueType.PATH and node.value == "" and not node.omit_empty:
                 diagnostics.append(Diagnostic("empty-path", "path value is required", node.origin))
-            if node.value_type is ValueType.PATH and node.value != "" and _needs_quoting(str(node.value)):
-                diagnostics.append(Diagnostic("quoted-path", "path requires command-file quoting", node.origin))
+            if (
+                node.value_type is ValueType.PATH
+                and node.value != ""
+                and _needs_quoting(str(node.value))
+            ):
+                diagnostics.append(
+                    Diagnostic("quoted-path", "path requires command-file quoting", node.origin)
+                )
         elif isinstance(node, RawLine):
             diagnostics.append(
-                Diagnostic("unsafe-raw", "raw command-file line requires explicit opt-in", node.origin)
+                Diagnostic(
+                    "unsafe-raw",
+                    "raw command-file line requires explicit opt-in",
+                    node.origin,
+                )
             )
         elif isinstance(node, (Comment, BlankLine)):
             pass
         else:
             diagnostics.append(
-                Diagnostic("unsupported-node", f"unsupported command-file node {type(node).__name__}")
+                Diagnostic(
+                    "unsupported-node",
+                    f"unsupported command-file node {type(node).__name__}",
+                )
             )
         return diagnostics
 

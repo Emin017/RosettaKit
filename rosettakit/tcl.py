@@ -174,7 +174,9 @@ class Script:
     @contextmanager
     def if_not(self, condition: Condition, *, origin: str | None = None) -> Iterator[Script]:
         body: list[TclNode] = []
-        self._current().append(If(Condition(f"!({condition.text})", condition.diagnostics), body, origin))
+        self._current().append(
+            If(Condition(f"!({condition.text})", condition.diagnostics), body, origin)
+        )
         self._stack.append(body)
         try:
             yield self
@@ -241,7 +243,10 @@ class TclBuilder:
     def _render_node(self, node: TclNode, *, level: int) -> str:
         prefix = self.indent * level
         if isinstance(node, Comment):
-            return "".join(f"{prefix}# {_escape_comment_line(line)}\n" for line in _comment_lines(node.text))
+            return "".join(
+                f"{prefix}# {_escape_comment_line(line)}\n"
+                for line in _comment_lines(node.text)
+            )
         if isinstance(node, BlankLine):
             return "\n"
         if isinstance(node, Set):
@@ -261,26 +266,38 @@ class TclBuilder:
         diagnostics: list[Diagnostic] = []
         if isinstance(node, Set):
             if not node.name:
-                diagnostics.append(Diagnostic("empty-variable-name", "variable name is required", node.origin))
-            diagnostics.extend(_validate_value(node.value, origin=node.origin, scalar_api=node.scalar_api))
+                diagnostics.append(
+                    Diagnostic("empty-variable-name", "variable name is required", node.origin)
+                )
+            diagnostics.extend(
+                _validate_value(node.value, origin=node.origin, scalar_api=node.scalar_api)
+            )
         elif isinstance(node, Command):
             if not node.name:
-                diagnostics.append(Diagnostic("empty-command-name", "command name is required", node.origin))
+                diagnostics.append(
+                    Diagnostic("empty-command-name", "command name is required", node.origin)
+                )
             for arg in node.args:
                 diagnostics.extend(_validate_value(arg, origin=node.origin, scalar_api=False))
         elif isinstance(node, If):
             if not node.condition.text:
-                diagnostics.append(Diagnostic("empty-condition", "condition is required", node.origin))
+                diagnostics.append(
+                    Diagnostic("empty-condition", "condition is required", node.origin)
+                )
             for item in node.condition.diagnostics:
                 diagnostics.append(_diagnostic_with_origin(item, node.origin))
             for child in node.body:
                 diagnostics.extend(self._validate_node(child))
         elif isinstance(node, RawLine):
-            diagnostics.append(Diagnostic("unsafe-raw", "raw Tcl line requires explicit opt-in", node.origin))
+            diagnostics.append(
+                Diagnostic("unsafe-raw", "raw Tcl line requires explicit opt-in", node.origin)
+            )
         elif isinstance(node, (Comment, BlankLine)):
             pass
         else:
-            diagnostics.append(Diagnostic("unsupported-node", f"unsupported Tcl node {type(node).__name__}"))
+            diagnostics.append(
+                Diagnostic("unsupported-node", f"unsupported Tcl node {type(node).__name__}")
+            )
         return diagnostics
 
 
@@ -317,14 +334,18 @@ def _validate_value(
         for item in value.values:
             diagnostics.extend(_validate_value(item, origin=origin, scalar_api=False))
     elif isinstance(value, VarRef) and not value.name:
-        diagnostics.append(Diagnostic("empty-variable-name", "variable reference name is required", origin))
+        diagnostics.append(
+            Diagnostic("empty-variable-name", "variable reference name is required", origin)
+        )
     elif isinstance(value, CommandSubstitution):
         if not value.command:
             diagnostics.append(Diagnostic("empty-command-name", "command name is required", origin))
         for arg in value.args:
             diagnostics.extend(_validate_value(arg, origin=origin, scalar_api=False))
     elif isinstance(value, Raw):
-        diagnostics.append(Diagnostic("unsafe-raw", "raw Tcl value requires explicit opt-in", origin))
+        diagnostics.append(
+            Diagnostic("unsafe-raw", "raw Tcl value requires explicit opt-in", origin)
+        )
     return diagnostics
 
 
