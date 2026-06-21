@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from pathlib import Path
 import subprocess
 
 from examples import sizer_cmd_file, sizer_env_file, yosys_global_var
 from tests.tclsh_utils import require_tclsh
 
 
-def test_yosys_example_output_is_deterministic_and_tclsh_valid(tmp_path) -> None:
+def test_yosys_example_output_is_deterministic_and_tclsh_valid(tmp_path: Path) -> None:
     text = yosys_global_var.build_global_var_tcl()
 
     assert text == (
