@@ -1,5 +1,10 @@
 # RosettaKit
 
+[![CI](https://github.com/Emin017/RosettaKit/actions/workflows/ci.yml/badge.svg)](https://github.com/Emin017/RosettaKit/actions/workflows/ci.yml)
+[![PyPI Publish](https://github.com/Emin017/RosettaKit/actions/workflows/publish.yml/badge.svg)](https://github.com/Emin017/RosettaKit/actions/workflows/publish.yml)
+[![GitHub Release](https://img.shields.io/github/v/release/Emin017/RosettaKit?label=GitHub%20release)](https://github.com/Emin017/RosettaKit/releases)
+[![PyPI](https://img.shields.io/pypi/v/rosettakit.svg)](https://pypi.org/project/rosettakit/)
+
 RosettaKit is a small Python library for building typed EDA script documents and
 rendering them into tool-facing text such as Tcl fragments and command files.
 
