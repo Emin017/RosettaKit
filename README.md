@@ -5,7 +5,7 @@ rendering them into tool-facing text such as Tcl fragments and command files.
 
 ## API Stability
 
-RosettaKit 1.1.0 treats the public node, value, document, and builder APIs as
+RosettaKit 0.2.0 treats the public node, value, document, and builder APIs as
 stable:
 
 - `rosettakit.tcl`: `Script`, `TclBuilder`, `Scalar`, `PathValue`,

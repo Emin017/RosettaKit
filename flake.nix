@@ -32,11 +32,6 @@
               ];
             };
 
-          postPatch = ''
-            substituteInPlace pyproject.toml \
-              --replace-fail 'uv-build>=0.10.9,<0.11.0' 'uv-build>=0.8.5'
-          '';
-
           build-system = with python3Packages; [ uv-build ];
 
           pythonImportsCheck = [ "rosettakit" ];

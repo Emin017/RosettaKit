@@ -1,6 +1,6 @@
 # RosettaKit API Reference
 
-This reference summarizes RosettaKit 1.1.0 as observed in the local repository.
+This reference summarizes RosettaKit 0.2.0 as observed in the local repository.
 Verify against the active package when working in a repo, because generated text
 is part of RosettaKit's compatibility surface.
 
