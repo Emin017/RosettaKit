@@ -25,6 +25,7 @@
             toSource {
               root = ./.;
               fileset = unions [
+                ./LICENSE
                 ./README.md
                 ./pyproject.toml
                 ./uv.lock
