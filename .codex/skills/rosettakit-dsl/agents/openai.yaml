@@ -1,0 +1,4 @@
+interface:
+  display_name: "RosettaKit DSL"
+  short_description: "Build typed EDA Tcl and command files"
+  default_prompt: "Use $rosettakit-dsl to generate or migrate EDA Tcl and command-file text with RosettaKit."
