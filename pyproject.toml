@@ -8,6 +8,11 @@ version = "0.2.0"
 description = "Typed Python builders for EDA scripts and command files"
 readme = "README.md"
 requires-python = ">=3.10"
+license = "Apache-2.0"
+license-files = [ "LICENSE" ]
+authors = [
+  { name = "Emin", email = "me@emin.chat" },
+]
 classifiers = [
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.10",
@@ -16,6 +21,11 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
 ]
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/Emin017/RosettaKit"
+Repository = "https://github.com/Emin017/RosettaKit"
+Issues = "https://github.com/Emin017/RosettaKit/issues"
 
 [dependency-groups]
 dev = [
