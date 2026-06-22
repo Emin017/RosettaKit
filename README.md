@@ -5,7 +5,7 @@ rendering them into tool-facing text such as Tcl fragments and command files.
 
 ## API Stability
 
-RosettaKit 1.0.0 treats the public node, value, document, and builder APIs as
+RosettaKit 1.1.0 treats the public node, value, document, and builder APIs as
 stable:
 
 - `rosettakit.tcl`: `Script`, `TclBuilder`, `Scalar`, `PathValue`,
@@ -14,6 +14,7 @@ stable:
   functions such as `word`, `path`, `list_value`, `var`, `expr`, `call`, `raw`,
   and `file_isdirectory`.
 - `rosettakit.cmdfile`: `CommandFile`, `CommandFileBuilder`, `ValueType`,
+  `ValueQuoting`, `CommandFileDialect`, `TCL_WORD_DIALECT`, `PLAIN_DIALECT`,
   `Comment`, `BlankLine`, `Flag`, `Option`, and `RawLine`.
 - `rosettakit.diagnostics.Diagnostic` and the exception hierarchy in
   `rosettakit.errors`.
@@ -63,6 +64,8 @@ text = cmd.build()
 
 Command files preserve insertion order, support flags, single options,
 repeated options, optional omission of empty values, and path-aware quoting.
+`PLAIN_DIALECT` emits unquoted whitespace-delimited option values and rejects
+values that cannot be represented safely in that form.
 
 ## Examples
 

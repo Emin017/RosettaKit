@@ -19,6 +19,34 @@ class ValueType(Enum):
     PATH = "path"
 
 
+class ValueQuoting(Enum):
+    """Policy used to validate and render command-file option values."""
+
+    TCL_WORD = "tcl-word"
+    PLAIN_UNQUOTED = "plain-unquoted"
+
+
+@dataclass(frozen=True)
+class CommandFileDialect:
+    """Named command-file dialect describing how option values are represented."""
+
+    name: str
+    value_quoting: ValueQuoting
+
+
+TCL_WORD_DIALECT = CommandFileDialect(
+    name="tcl-word",
+    value_quoting=ValueQuoting.TCL_WORD,
+)
+"""Default command-file dialect using Tcl-word-like quoting for option values."""
+
+PLAIN_DIALECT = CommandFileDialect(
+    name="plain",
+    value_quoting=ValueQuoting.PLAIN_UNQUOTED,
+)
+"""Whitespace-delimited command-file dialect that rejects values needing quoting."""
+
+
 @dataclass(frozen=True)
 class Comment:
     """A command-file comment node."""
@@ -67,13 +95,20 @@ CommandFileNode: TypeAlias = Comment | BlankLine | Flag | Option | RawLine
 class CommandFile:
     """Mutable command-file document that preserves insertion order."""
 
-    def __init__(self, *, prefix: str = "-") -> None:
+    def __init__(
+        self,
+        *,
+        prefix: str = "-",
+        dialect: CommandFileDialect = TCL_WORD_DIALECT,
+    ) -> None:
         """Create an empty command-file document.
 
         `prefix` is prepended to flags and option names. Use `prefix=""` for
-        command-like env files that do not use dashed option names.
+        command-like env files that do not use dashed option names. `dialect`
+        controls validation and rendering for option values.
         """
         self.prefix = prefix
+        self.dialect = dialect
         self._nodes: list[CommandFileNode] = []
 
     @property
@@ -106,7 +141,7 @@ class CommandFile:
         omit_empty: bool = False,
         origin: str | None = None,
     ) -> None:
-        """Append one option line with a quoted value.
+        """Append one option line with a dialect-rendered value.
 
         Set `value_type=ValueType.PATH` for filesystem paths so validation can
         report empty paths and path quoting diagnostics. `omit_empty=True`
@@ -172,16 +207,30 @@ class CommandFileBuilder:
             raise UnsafeRawError(self.backend, raw_diagnostics)
         if blocking:
             raise ValidationError(self.backend, blocking)
-        return "".join(self._render_node(document.prefix, node) for node in document.nodes)
+        return "".join(
+            self._render_node(document.prefix, document.dialect, node) for node in document.nodes
+        )
 
     def validate(self, document: CommandFile) -> list[Diagnostic]:
         """Return diagnostics for a `CommandFile` without rendering text."""
         diagnostics: list[Diagnostic] = []
+        if not _is_supported_dialect(document.dialect):
+            diagnostics.append(
+                Diagnostic(
+                    "unsupported-command-file-dialect",
+                    f"unsupported command-file dialect: {document.dialect.name}",
+                )
+            )
         for node in document.nodes:
-            diagnostics.extend(self._validate_node(node))
+            diagnostics.extend(self._validate_node(document.dialect, node))
         return diagnostics
 
-    def _render_node(self, prefix: str, node: CommandFileNode) -> str:
+    def _render_node(
+        self,
+        prefix: str,
+        dialect: CommandFileDialect,
+        node: CommandFileNode,
+    ) -> str:
         if isinstance(node, Comment):
             return "".join(f"# {line}\n" for line in _comment_lines(node.text))
         if isinstance(node, BlankLine):
@@ -191,12 +240,24 @@ class CommandFileBuilder:
         if isinstance(node, Option):
             if node.omit_empty and node.value == "":
                 return ""
-            return f"{prefix}{node.name} {_quote_word(str(node.value))}\n"
+            return f"{prefix}{node.name} {self._render_option_value(dialect, node.value)}\n"
         if isinstance(node, RawLine):
             return f"{node.text}\n"
         raise BuildError(f"unsupported command-file node: {node!r}")
 
-    def _validate_node(self, node: CommandFileNode) -> list[Diagnostic]:
+    def _render_option_value(self, dialect: CommandFileDialect, value: object) -> str:
+        text = str(value)
+        if dialect.value_quoting is ValueQuoting.TCL_WORD:
+            return _quote_word(text)
+        if dialect.value_quoting is ValueQuoting.PLAIN_UNQUOTED:
+            return text
+        raise BuildError(f"unsupported command-file dialect: {dialect.name}")
+
+    def _validate_node(
+        self,
+        dialect: CommandFileDialect,
+        node: CommandFileNode,
+    ) -> list[Diagnostic]:
         diagnostics: list[Diagnostic] = []
         if isinstance(node, Flag):
             if not node.name:
@@ -204,28 +265,7 @@ class CommandFileBuilder:
                     Diagnostic("empty-option-name", "flag name is required", node.origin)
                 )
         elif isinstance(node, Option):
-            if not node.name:
-                diagnostics.append(
-                    Diagnostic("empty-option-name", "option name is required", node.origin)
-                )
-            if _has_line_break(str(node.value)):
-                diagnostics.append(
-                    Diagnostic(
-                        "line-break-in-value",
-                        "command-file values cannot contain line breaks",
-                        node.origin,
-                    )
-                )
-            if node.value_type is ValueType.PATH and node.value == "" and not node.omit_empty:
-                diagnostics.append(Diagnostic("empty-path", "path value is required", node.origin))
-            if (
-                node.value_type is ValueType.PATH
-                and node.value != ""
-                and _needs_quoting(str(node.value))
-            ):
-                diagnostics.append(
-                    Diagnostic("quoted-path", "path requires command-file quoting", node.origin)
-                )
+            diagnostics.extend(self._validate_option(dialect, node))
         elif isinstance(node, RawLine):
             diagnostics.append(
                 Diagnostic(
@@ -243,6 +283,33 @@ class CommandFileBuilder:
                     f"unsupported command-file node {type(node).__name__}",
                 )
             )
+        return diagnostics
+
+    def _validate_option(
+        self,
+        dialect: CommandFileDialect,
+        node: Option,
+    ) -> list[Diagnostic]:
+        diagnostics: list[Diagnostic] = []
+        text = str(node.value)
+        if not node.name:
+            diagnostics.append(
+                Diagnostic("empty-option-name", "option name is required", node.origin)
+            )
+        if _has_line_break(text):
+            diagnostics.append(
+                Diagnostic(
+                    "line-break-in-value",
+                    "command-file values cannot contain line breaks",
+                    node.origin,
+                )
+            )
+        if node.value_type is ValueType.PATH and node.value == "" and not node.omit_empty:
+            diagnostics.append(Diagnostic("empty-path", "path value is required", node.origin))
+        if dialect.value_quoting is ValueQuoting.TCL_WORD:
+            diagnostics.extend(_validate_tcl_word_option(node, text))
+        elif dialect.value_quoting is ValueQuoting.PLAIN_UNQUOTED:
+            diagnostics.extend(_validate_plain_option(node, text))
         return diagnostics
 
 
@@ -284,3 +351,38 @@ def _has_line_break(text: str) -> bool:
 
 def _comment_lines(text: str) -> list[str]:
     return text.splitlines() or [""]
+
+
+def _validate_tcl_word_option(node: Option, text: str) -> list[Diagnostic]:
+    if node.value_type is ValueType.PATH and text != "" and _needs_quoting(text):
+        return [Diagnostic("quoted-path", "path requires command-file quoting", node.origin)]
+    return []
+
+
+def _validate_plain_option(node: Option, text: str) -> list[Diagnostic]:
+    if node.omit_empty and node.value == "":
+        return []
+    if node.value_type is ValueType.SCALAR and text == "":
+        return [
+            Diagnostic(
+                "empty-unquoted-value",
+                "empty values cannot be represented as plain whitespace-delimited tokens",
+                node.origin,
+            )
+        ]
+    if text != "" and not _has_line_break(text) and _needs_quoting(text):
+        return [
+            Diagnostic(
+                "unquoted-value-needs-quoting",
+                "plain command-file values cannot contain whitespace or quoting characters",
+                node.origin,
+            )
+        ]
+    return []
+
+
+def _is_supported_dialect(dialect: CommandFileDialect) -> bool:
+    return dialect.value_quoting in {
+        ValueQuoting.TCL_WORD,
+        ValueQuoting.PLAIN_UNQUOTED,
+    }

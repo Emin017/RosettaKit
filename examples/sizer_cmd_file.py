@@ -6,14 +6,14 @@ from rosettakit import cmdfile
 
 
 def build_cmd_file() -> str:
-    cmd = cmdfile.CommandFile(prefix="-")
+    cmd = cmdfile.CommandFile(prefix="-", dialect=cmdfile.PLAIN_DIALECT)
     cmd.flag("useOpenSTA")
     cmd.option("top", "gcd_core")
-    cmd.option("def", "build out/input.def", value_type=cmdfile.ValueType.PATH)
+    cmd.option("def", "build/input.def", value_type=cmdfile.ValueType.PATH)
     cmd.option("v", "", value_type=cmdfile.ValueType.PATH, omit_empty=True)
-    cmd.option("sdc", "constraints/main clock.sdc", value_type=cmdfile.ValueType.PATH)
-    cmd.options("lef", ["tech/sky130.lef", "macro lef/sram.lef"], value_type=cmdfile.ValueType.PATH)
-    cmd.options("lib", ["lib/slow.lib", "lib/fast corner.lib"], value_type=cmdfile.ValueType.PATH)
+    cmd.option("sdc", "constraints/main_clock.sdc", value_type=cmdfile.ValueType.PATH)
+    cmd.options("lef", ["tech/sky130.lef", "macro_lef/sram.lef"], value_type=cmdfile.ValueType.PATH)
+    cmd.options("lib", ["lib/slow.lib", "lib/fast_corner.lib"], value_type=cmdfile.ValueType.PATH)
     cmd.option("outputPath", ".")
     cmd.option("def_out_path", "out/final.def", value_type=cmdfile.ValueType.PATH)
     return cmd.build()

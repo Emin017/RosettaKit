@@ -35,12 +35,12 @@ def test_sizer_examples_are_deterministic() -> None:
     assert sizer_cmd_file.build_cmd_file() == (
         "-useOpenSTA\n"
         "-top gcd_core\n"
-        "-def {build out/input.def}\n"
-        "-sdc {constraints/main clock.sdc}\n"
+        "-def build/input.def\n"
+        "-sdc constraints/main_clock.sdc\n"
         "-lef tech/sky130.lef\n"
-        "-lef {macro lef/sram.lef}\n"
+        "-lef macro_lef/sram.lef\n"
         "-lib lib/slow.lib\n"
-        "-lib {lib/fast corner.lib}\n"
+        "-lib lib/fast_corner.lib\n"
         "-outputPath .\n"
         "-def_out_path out/final.def\n"
     )
