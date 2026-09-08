@@ -1,6 +1,6 @@
 [build-system]
 build-backend = "uv_build"
-requires = [ "uv-build>=0.10.0,<0.12.8" ]
+requires = [ "uv-build>=0.10.0,<0.12.10" ]
 
 [project]
 name = "rosettakit"
